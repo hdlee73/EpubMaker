@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 펼친 책 모양 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,38 C48,33 38,32 30,34 L30,72 C38,70 48,71 54,76 Z" />
+    <path
+        android:fillColor="#DCE8F7"
+        android:pathData="M54,38 C60,33 70,32 78,34 L78,72 C70,70 60,71 54,76 Z" />
+    <path
+        android:fillColor="#1F4E8C"
+        android:pathData="M36,42 L49,43.5 L49,46 L36,44.5 Z M36,50 L49,51.5 L49,54 L36,52.5 Z M36,58 L49,59.5 L49,62 L36,60.5 Z" />
+</vector>

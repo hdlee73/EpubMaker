@@ -1,0 +1,21 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+# 비공개키·키스토어·시크릿은 절대 커밋하지 않습니다.
+*.jks
+*.keystore
+*.pem
+*.key
+.env
+secrets*
+__pycache__/
+*.pyc
