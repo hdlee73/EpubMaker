@@ -16,7 +16,8 @@ object Changelog {
         "1.0.0" to listOf(
             "최초 릴리스 (안드로이드)",
             "PDF 텍스트 추출: 머리글/바닥글 제거, 끊긴 문단 이어 붙이기, 제목 감지",
-            "표는 이미지로 캡처, 그림은 이미지로 추출하여 EPUB에 삽입",
+            "표는 이미지로 캡처 (표 인식 강도 선택: 엄격/보통), 그림은 이미지로 추출하여 EPUB에 삽입",
+            "장(챕터)은 제목을 인식해서 나누고, 제목을 찾지 못하면 나누지 않음",
             "글자 크기·줄 간격·여백·글꼴·정렬 지정 (미리보기 제공)",
             "뒤로가기/제스처는 앱 종료가 아니라 이전 화면으로 이동",
             "GitHub 릴리스 기반 자동 업데이트 확인 (서명 검증)",
@@ -48,9 +49,14 @@ data class EpubSettings(
     val font: FontChoice = FontChoice.SERIF,
     val align: AlignChoice = AlignChoice.LEFT,
     val paragraph: ParagraphChoice = ParagraphChoice.SPACE,
-    val chapterPages: Int = 10,
     val useCover: Boolean = false,
 )
+
+/** 표 인식 강도. 엄격: 표가 아닌 것을 표로 잘못 인식하는 일을 줄임 / 보통: 더 많이 표로 인식 */
+enum class TableStrictness(val label: String) {
+    STRICT("엄격"),
+    NORMAL("보통"),
+}
 
 /** PDF 추출 옵션 */
 data class ExtractOptions(
@@ -58,6 +64,7 @@ data class ExtractOptions(
     val mergeParagraphs: Boolean = true,
     val includeImages: Boolean = true,
     val tablesAsImages: Boolean = true,
+    val tableStrictness: TableStrictness = TableStrictness.STRICT,
     val minImagePt: Float = 40f,
     val makeCover: Boolean = false,
 )

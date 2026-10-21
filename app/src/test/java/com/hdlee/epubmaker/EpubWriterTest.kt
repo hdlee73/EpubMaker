@@ -72,11 +72,52 @@ class EpubWriterTest {
         assertTrue(css.contains("text-align: justify"))
     }
 
+    private fun h(level: Int, text: String, page: Int = 0) = Item(Kind.HEADING, text, level = level, page = page)
+    private fun p(text: String, page: Int = 0) = Item(Kind.PARAGRAPH, text, page = page)
+
     @Test
-    fun fallbackChaptersByPageWhenNoHeadings() {
-        val items = (0 until 25).map { Item(Kind.PARAGRAPH, "문단 $it", page = it) }
-        val chapters = EpubWriter.splitChapters(items, 10)
-        assertEquals(3, chapters.size)
-        assertEquals("1~10쪽", chapters[0].title)
+    fun noHeadings_isNotSplit() {
+        val items = (0 until 25).map { p("문단 $it", page = it) }
+        val chapters = EpubWriter.splitChapters(items, "내 책")
+        assertEquals(1, chapters.size)
+        assertEquals("내 책", chapters[0].title)
+        assertEquals(25, chapters[0].items.size)
+    }
+
+    @Test
+    fun singleHeading_isNotSplit() {
+        val chapters = EpubWriter.splitChapters(listOf(h(1, "제목"), p("본문"), p("본문2")), "내 책")
+        assertEquals(1, chapters.size)
+        assertEquals(3, chapters[0].items.size)
+    }
+
+    @Test
+    fun splitsAtLevel2_whenLevel1AppearsOnlyOnce() {
+        val items = listOf(h(1, "책 제목"), h(2, "1장"), p("a"), h(2, "2장"), p("b"))
+        val chapters = EpubWriter.splitChapters(items, "내 책")
+        assertEquals(listOf("1장", "2장"), chapters.map { it.title })
+        // 제목뿐인 도입부(책 제목)는 첫 장에 합쳐진다
+        assertEquals(3, chapters[0].items.size)
+        assertEquals(2, chapters[1].items.size)
+    }
+
+    @Test
+    fun frontMatterBeforeFirstHeading_getsOwnChapter() {
+        val items = listOf(p("서문입니다"), h(1, "1장"), p("a"), h(1, "2장"), p("b"))
+        val chapters = EpubWriter.splitChapters(items, "내 책")
+        assertEquals(listOf("시작", "1장", "2장"), chapters.map { it.title })
+    }
+
+    @Test
+    fun documentWithoutHeadings_writesSingleChapterFile() {
+        val result = ExtractResult(
+            (0 until 30).map { p("문단 $it", page = it) }.toMutableList(), "책", "", "ko", 30, null, emptyList(),
+        )
+        val bos = ByteArrayOutputStream()
+        val stats = EpubWriter.write(bos, result, EpubSettings(), "", "")
+        val files = entries(bos.toByteArray())
+        assertEquals(1, stats.chapters)
+        assertTrue(files.containsKey("OEBPS/chap_001.xhtml"))
+        assertTrue(!files.containsKey("OEBPS/chap_002.xhtml"))
     }
 }

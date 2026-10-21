@@ -26,7 +26,6 @@ class Prefs(context: Context) {
             font = enumOr("font", d.font),
             align = enumOr("align", d.align),
             paragraph = enumOr("paragraph", d.paragraph),
-            chapterPages = sp.getInt("chapter_pages", d.chapterPages),
             useCover = sp.getBoolean("use_cover", d.useCover),
         )
     }
@@ -39,7 +38,6 @@ class Prefs(context: Context) {
             .putString("font", s.font.name)
             .putString("align", s.align.name)
             .putString("paragraph", s.paragraph.name)
-            .putInt("chapter_pages", s.chapterPages)
             .putBoolean("use_cover", s.useCover)
             .apply()
     }
@@ -51,6 +49,7 @@ class Prefs(context: Context) {
             mergeParagraphs = sp.getBoolean("merge_paragraphs", d.mergeParagraphs),
             includeImages = sp.getBoolean("include_images", d.includeImages),
             tablesAsImages = sp.getBoolean("tables_as_images", d.tablesAsImages),
+            tableStrictness = enumOr("table_strictness", d.tableStrictness),
         )
     }
 
@@ -60,6 +59,7 @@ class Prefs(context: Context) {
             .putBoolean("merge_paragraphs", o.mergeParagraphs)
             .putBoolean("include_images", o.includeImages)
             .putBoolean("tables_as_images", o.tablesAsImages)
+            .putString("table_strictness", o.tableStrictness.name)
             .apply()
     }
 }

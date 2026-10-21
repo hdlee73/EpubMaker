@@ -42,21 +42,11 @@ import kotlin.math.roundToInt
 class PdfExtractor {
 
     // ------------------------------------------------------------------ 내부 자료구조
-    private class Cell(val text: String, val x0: Float, val x1: Float)
-
-    private class RawLine(
-        val text: String,
-        val x0: Float,
-        val x1: Float,
-        val y: Float, // 기준선(위에서부터의 거리, pt)
-        val size: Float,
-        val bold: Boolean,
-        val cells: List<Cell>,
-    )
+    // PdfLine / PdfCell 은 TableDetector.kt 에 있습니다.
 
     private class ImgBox(val x: Float, val top: Float, val w: Float, val h: Float)
 
-    private class PageData(val width: Float, val height: Float, val lines: List<RawLine>, val images: List<ImgBox>)
+    private class PageData(val width: Float, val height: Float, val lines: List<PdfLine>, val images: List<ImgBox>)
 
     private class Pos(val y: Float, val item: Item)
 
@@ -68,7 +58,7 @@ class PdfExtractor {
 
     // ------------------------------------------------------------------ PDFBox 도우미
     private class LineCollector : PDFTextStripper() {
-        val lines = ArrayList<RawLine>()
+        val lines = ArrayList<PdfLine>()
 
         init {
             sortByPosition = true
@@ -82,7 +72,7 @@ class PdfExtractor {
             var sizeSum = 0f
             var chars = 0
             var bold = true
-            val cells = ArrayList<Cell>()
+            val cells = ArrayList<PdfCell>()
             var cur = StringBuilder()
             var cx0 = tps[0].xDirAdj
             var prevEnd = cx0
@@ -91,8 +81,8 @@ class PdfExtractor {
                 val u: String = tp.unicode
                 val x = tp.xDirAdj
                 val fs = tp.fontSizeInPt
-                if (!first && x - prevEnd > fs * 1.5f && cur.isNotBlank()) {
-                    cells.add(Cell(cur.toString().trim(), cx0, prevEnd))
+                if (!first && x - prevEnd > fs * 2.0f && cur.isNotBlank()) {
+                    cells.add(PdfCell(cur.toString().trim(), cx0, prevEnd))
                     cur = StringBuilder()
                     cx0 = x
                 }
@@ -106,11 +96,11 @@ class PdfExtractor {
                     if (!(fn.contains("bold") || fn.contains("black") || fn.contains("heavy"))) bold = false
                 }
             }
-            if (cur.isNotBlank()) cells.add(Cell(cur.toString().trim(), cx0, prevEnd))
+            if (cur.isNotBlank()) cells.add(PdfCell(cur.toString().trim(), cx0, prevEnd))
             if (chars == 0) return
             val last = tps.last()
             lines.add(
-                RawLine(
+                PdfLine(
                     text = trimmed,
                     x0 = tps.first().xDirAdj,
                     x1 = max(last.xDirAdj + last.widthDirAdj, prevEnd),
@@ -347,7 +337,9 @@ class PdfExtractor {
             val consumed = BooleanArray(lines.size)
 
             if (opts.tablesAsImages) {
-                for (range in detectTables(lines)) {
+                val measured = (lines.maxOfOrNull { it.x1 } ?: 0f) - (lines.minOfOrNull { it.x0 } ?: 0f)
+                val contentWidth = max(measured, pd.width * 0.7f)
+                for (range in TableDetector.detect(lines, contentWidth, opts.tableStrictness)) {
                     val rows = lines.subList(range.first, range.last + 1)
                     val left = rows.minOf { it.x0 } - 6f
                     val right = rows.maxOf { it.x1 } + 6f
@@ -424,47 +416,8 @@ class PdfExtractor {
         }
     }
 
-    // ------------------------------------------------------------------ 표 감지
-    private fun isRow(l: RawLine) =
-        l.cells.size >= 2 && l.cells.all { it.text.length <= 40 && !it.text.contains("....") && !it.text.contains("··") }
-
-    private fun columnsAligned(a: RawLine, b: RawLine): Boolean {
-        var matches = 0
-        for (cb in b.cells) {
-            if (a.cells.any { ca ->
-                    abs(ca.x0 - cb.x0) < 8f || abs(ca.x1 - cb.x1) < 8f ||
-                        abs((ca.x0 + ca.x1) / 2f - (cb.x0 + cb.x1) / 2f) < 8f
-                }
-            ) matches++
-        }
-        return matches >= max(1, min(a.cells.size, b.cells.size) / 2)
-    }
-
-    /** 가로로 간격을 두고 정렬된 짧은 칸이 3줄 이상 이어지면 표로 본다. */
-    private fun detectTables(lines: List<RawLine>): List<IntRange> {
-        val ranges = ArrayList<IntRange>()
-        var i = 0
-        while (i < lines.size) {
-            if (isRow(lines[i])) {
-                var j = i
-                while (j + 1 < lines.size && isRow(lines[j + 1]) &&
-                    abs(lines[j].cells.size - lines[j + 1].cells.size) <= 1 &&
-                    (lines[j + 1].y - lines[j].y) < 3f * max(lines[j].size, lines[j + 1].size) &&
-                    columnsAligned(lines[j], lines[j + 1])
-                ) j++
-                if (j - i + 1 >= 3) {
-                    ranges.add(i..j)
-                    i = j + 1
-                    continue
-                }
-            }
-            i++
-        }
-        return ranges
-    }
-
     // ------------------------------------------------------------------ 문단 만들기
-    private fun breaksParagraph(p: RawLine, l: RawLine, left: Float, width: Float): Boolean {
+    private fun breaksParagraph(p: PdfLine, l: PdfLine, left: Float, width: Float): Boolean {
         val gap = l.y - p.y
         if (gap < -p.size * 0.5f) return true // 단/위치가 거꾸로 이동
         if (gap > max(p.size, l.size) * 1.75f) return true // 큰 세로 간격
@@ -478,13 +431,13 @@ class PdfExtractor {
         return false
     }
 
-    private fun groupParagraphs(lines: List<RawLine>, bodySize: Float, pno: Int): List<Pos> {
+    private fun groupParagraphs(lines: List<PdfLine>, bodySize: Float, pno: Int): List<Pos> {
         if (lines.isEmpty()) return emptyList()
         val left = lines.minOf { it.x0 }
         val right = lines.maxOf { it.x1 }
         val width = max(right - left, 1f)
-        val groups = ArrayList<MutableList<RawLine>>()
-        var prev: RawLine? = null
+        val groups = ArrayList<MutableList<PdfLine>>()
+        var prev: PdfLine? = null
         for (l in lines) {
             if (prev == null || breaksParagraph(prev, l, left, width)) groups.add(mutableListOf(l))
             else groups.last().add(l)

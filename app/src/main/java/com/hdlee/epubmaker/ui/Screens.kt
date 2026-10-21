@@ -62,6 +62,7 @@ import com.hdlee.epubmaker.FontChoice
 import com.hdlee.epubmaker.MainViewModel
 import com.hdlee.epubmaker.ParagraphChoice
 import com.hdlee.epubmaker.Screen
+import com.hdlee.epubmaker.TableStrictness
 import kotlin.math.roundToInt
 
 /** 앱 전체 화면. 뒤로가기/제스처는 앱 종료가 아니라 "이전 화면"으로 이동한다. */
@@ -172,6 +173,16 @@ private fun HomeScreen(vm: MainViewModel, onPickPdf: () -> Unit, onConvert: () -
         SwitchRow("끊긴 문단 이어 붙이기", o.mergeParagraphs) { vm.updateOptions(o.copy(mergeParagraphs = it)) }
         SwitchRow("그림 포함", o.includeImages) { vm.updateOptions(o.copy(includeImages = it)) }
         SwitchRow("표는 이미지로 캡처해서 삽입", o.tablesAsImages) { vm.updateOptions(o.copy(tablesAsImages = it)) }
+        if (o.tablesAsImages) {
+            ChipRow("표 인식 강도", TableStrictness.entries, o.tableStrictness, { it.label }) {
+                vm.updateOptions(o.copy(tableStrictness = it))
+            }
+            Text(
+                if (o.tableStrictness == TableStrictness.STRICT) "엄격: 표가 아닌 것을 표로 잘못 인식하는 일을 줄입니다. 복잡한 표는 글자로 남을 수 있습니다."
+                else "보통: 더 많이 표로 인식합니다. 표가 아닌 부분이 이미지로 바뀔 수 있습니다.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         SwitchRow("첫 페이지를 표지로 사용", vm.settings.useCover) { vm.updateSettings(vm.settings.copy(useCover = it)) }
     }
 
@@ -258,9 +269,7 @@ private fun FormatScreen(vm: MainViewModel) {
     }
 
     SectionCard("장(챕터) 나누기") {
-        LabeledSlider("제목으로 못 나눌 때 몇 쪽마다 한 장?", "${s.chapterPages} 쪽", s.chapterPages.toFloat(), 5f..50f, 8) {
-            vm.updateSettings(s.copy(chapterPages = ((it / 5f).roundToInt() * 5).coerceIn(5, 50)))
-        }
+        Text("제목을 인식해서 장을 나눕니다. 제목을 찾지 못하면 나누지 않고 한 권으로 만듭니다.", style = MaterialTheme.typography.bodyMedium)
     }
 
     OutlinedButton(onClick = { vm.resetSettings() }, modifier = Modifier.fillMaxWidth()) { Text("기본값으로 되돌리기") }

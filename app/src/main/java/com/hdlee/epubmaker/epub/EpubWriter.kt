@@ -56,34 +56,31 @@ div.fig img { max-width: 100%; height: auto; }
 
     private fun trim(f: Float): String = if (f == f.toInt().toFloat()) f.toInt().toString() else String.format(java.util.Locale.US, "%.1f", f)
 
-    /** 제목(h1)이 2개 이상이면 제목 기준으로, 아니면 N쪽 단위로 장을 나눈다. */
-    fun splitChapters(items: List<Item>, pagesPerChapter: Int): List<Chapter> {
-        val h1Count = items.count { it.kind == Kind.HEADING && it.level == 1 }
+    /**
+     * 제목을 기준으로만 장을 나눈다. 2번 이상 나오는 가장 높은 단계(1>2>3)의 제목이 장 경계가 된다.
+     * 그런 제목이 없으면(제목을 못 찾으면) 나누지 않고 한 덩어리로 둔다.
+     */
+    fun splitChapters(items: List<Item>, fallbackTitle: String): List<Chapter> {
+        val level = (1..3).firstOrNull { lv ->
+            items.count { it.kind == Kind.HEADING && it.level == lv } >= 2
+        } ?: return listOf(Chapter(fallbackTitle, items))
+
         val chapters = ArrayList<Chapter>()
-        if (h1Count >= 2) {
-            var title = ""
-            var cur = ArrayList<Item>()
-            for (it in items) {
-                if (it.kind == Kind.HEADING && it.level == 1) {
-                    if (cur.isNotEmpty()) {
-                        chapters.add(Chapter(title.ifEmpty { "시작" }, cur))
-                        cur = ArrayList()
-                    }
-                    title = it.text
+        var title: String? = null
+        var cur = ArrayList<Item>()
+        for (item in items) {
+            if (item.kind == Kind.HEADING && item.level == level) {
+                val onlyHeadings = cur.all { it.kind == Kind.HEADING }
+                if (cur.isNotEmpty() && !(title == null && onlyHeadings)) {
+                    // 첫 제목 앞에 책 제목 같은 제목뿐인 도입부만 있으면 첫 장에 합치고, 그 외에는 따로 둔다.
+                    chapters.add(Chapter(title ?: cur.firstOrNull { it.kind == Kind.HEADING }?.text ?: "시작", cur))
+                    cur = ArrayList()
                 }
-                cur.add(it)
+                title = item.text
             }
-            if (cur.isNotEmpty()) chapters.add(Chapter(title.ifEmpty { "시작" }, cur))
-            return chapters
+            cur.add(item)
         }
-        val step = pagesPerChapter.coerceAtLeast(1)
-        val buckets = java.util.TreeMap<Int, MutableList<Item>>()
-        for (it in items) buckets.getOrPut(it.page / step) { ArrayList() }.add(it)
-        for ((k, list) in buckets) {
-            val lo = k * step + 1
-            val last = list.maxOf { it.page } + 1
-            chapters.add(Chapter("${lo}~${minOf((k + 1) * step, last)}쪽", list))
-        }
+        if (cur.isNotEmpty()) chapters.add(Chapter(title ?: fallbackTitle, cur))
         return chapters
     }
 
@@ -97,7 +94,7 @@ div.fig img { max-width: 100%; height: auto; }
         val bookTitle = title.ifBlank { result.title.ifBlank { "제목 없음" } }
         val bookAuthor = author.ifBlank { result.author.ifBlank { "작자 미상" } }
         val lang = result.language.ifBlank { "en" }
-        val chapters = splitChapters(result.items, settings.chapterPages)
+        val chapters = splitChapters(result.items, bookTitle)
         val modified = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC).format(Instant.now())
 
         val manifest = StringBuilder()
