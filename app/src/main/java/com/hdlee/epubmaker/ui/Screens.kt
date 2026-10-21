@@ -276,7 +276,7 @@ private fun AboutScreen(vm: MainViewModel, ctx: Context) {
     }
 
     SectionCard("업데이트") {
-        SwitchRow("앱을 열 때 업데이트 자동 확인", vm.autoCheck) { vm.setAutoCheck(it) }
+        SwitchRow("앱을 열 때 업데이트 자동 확인", vm.autoCheck) { vm.changeAutoCheck(it) }
         Button(onClick = { vm.checkUpdate(silent = false) }, enabled = !vm.updateBusy) { Text("지금 업데이트 확인") }
         vm.updateMessage?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         Text(

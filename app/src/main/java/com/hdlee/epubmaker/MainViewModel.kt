@@ -155,7 +155,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ------------------------------------------------------------ 업데이트
-    fun setAutoCheck(v: Boolean) {
+    fun changeAutoCheck(v: Boolean) {
         autoCheck = v
         prefs.autoCheckUpdate = v
     }
