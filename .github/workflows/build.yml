@@ -21,7 +21,14 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
       - name: Unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --console=plain testDebugUnitTest 2>&1 | tee build.log
+      - name: Report build errors
+        if: failure()
+        run: |
+          MSG=$(grep -E "^e: |What went wrong|Execution failed|FAILED|AssertionError|Exception" -A2 build.log | head -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A",$0}')
+          echo "::error title=build-errors::$MSG"
       - name: Assemble debug APK
         run: ./gradlew --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
